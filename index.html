@@ -3,22 +3,22 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>DARK MIND - THE UNKNOWN</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>DARK MIND</title>
 <style>
 *{box-sizing:border-box}
 body{margin:0;overflow:hidden;background:#080d12;color:white;font-family:Arial}
 canvas{display:block}
 #hud{position:fixed;inset:0;pointer-events:none}
-h3{margin:15px;letter-spacing:3px}
-#info{position:absolute;top:65px;left:15px;background:#101820bb;padding:12px;font-size:12px}
-button{pointer-events:auto;background:#172630dd;color:white;border:1px solid #8195a0;padding:12px;border-radius:9px}
-#camera{position:absolute;right:12px;top:15px}
-#flash{position:absolute;right:12px;top:65px}
-#stick{position:absolute;bottom:25px;left:22px;width:105px;height:105px;border:2px solid #ffffff66;border-radius:50%;pointer-events:auto}
-#knob{position:absolute;left:30px;top:30px;width:42px;height:42px;border-radius:50%;background:#9eafbbaa}
-#run{position:absolute;bottom:45px;right:18px}
-#jump{position:absolute;bottom:110px;right:18px}
+header{padding:15px;font-weight:bold;letter-spacing:3px}
+#mission{position:absolute;top:65px;left:15px;background:#101b24cc;padding:12px;font-size:12px}
+button{background:#14232e;color:white;border:1px solid #9aabb5;padding:12px;border-radius:10px;font-weight:bold}
+#camera{position:absolute;top:15px;right:12px;pointer-events:auto}
+#flash{position:absolute;top:65px;right:12px;pointer-events:auto}
+#joy{position:absolute;bottom:25px;left:20px;width:110px;height:110px;border:2px solid #ffffff77;border-radius:50%;pointer-events:auto;touch-action:none}
+#knob{width:42px;height:42px;background:#ffffff88;border-radius:50%;position:absolute;left:32px;top:32px}
+#actions{position:absolute;bottom:25px;right:15px;display:flex;flex-direction:column;gap:10px;pointer-events:auto}
+#toast{position:absolute;bottom:155px;left:50%;transform:translateX(-50%);font-size:12px;background:#111c26;padding:9px;border-radius:8px}
 </style>
 <script type="importmap">
 {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"}}
@@ -26,13 +26,17 @@ button{pointer-events:auto;background:#172630dd;color:white;border:1px solid #81
 </head>
 <body>
 <div id="hud">
-<h3>DARK MIND</h3>
-<div id="info">MISSION 01<br>THE EMPTY STREET</div>
-<button id="camera">FIRST PERSON</button>
+<header>DARK MIND — THE UNKNOWN</header>
+<div id="mission">MISSION 01<br>Explore the abandoned city</div>
+<button id="camera">SWITCH CAMERA</button>
 <button id="flash">FLASHLIGHT ON</button>
-<div id="stick"><div id="knob"></div></div>
+<div id="joy"><div id="knob"></div></div>
+<div id="actions">
 <button id="run">RUN</button>
 <button id="jump">JUMP</button>
+<button id="interact">INTERACT</button>
+</div>
+<div id="toast">Find the unknown signal...</div>
 </div>
 
 <script type="module">
@@ -40,9 +44,9 @@ import * as THREE from 'three';
 
 const scene=new THREE.Scene();
 scene.background=new THREE.Color(0x080d16);
-scene.fog=new THREE.Fog(0x101923,12,75);
+scene.fog=new THREE.Fog(0x080d16,15,100);
 
-const camera=new THREE.PerspectiveCamera(70,innerWidth/innerHeight,.1,150);
+const camera=new THREE.PerspectiveCamera(70,innerWidth/innerHeight,.1,200);
 const renderer=new THREE.WebGLRenderer({antialias:true});
 renderer.setSize(innerWidth,innerHeight);
 renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));
@@ -50,41 +54,48 @@ renderer.shadowMap.enabled=true;
 renderer.toneMapping=THREE.ACESFilmicToneMapping;
 document.body.appendChild(renderer.domElement);
 
-scene.add(new THREE.HemisphereLight(0x9bbbd0,0x17121a,1.5));
+scene.add(new THREE.HemisphereLight(0x9bbbd0,0x17121a,1.8));
 const moon=new THREE.DirectionalLight(0xa8c9e8,2);
-moon.position.set(-10,20,10);
+moon.position.set(-15,25,10);
+moon.castShadow=true;
 scene.add(moon);
 
-const floor=new THREE.Mesh(
-new THREE.PlaneGeometry(150,150),
+const ground=new THREE.Mesh(
+new THREE.PlaneGeometry(200,200),
 new THREE.MeshStandardMaterial({color:0x252a2d,roughness:.9})
 );
-floor.rotation.x=-Math.PI/2;
-scene.add(floor);
+ground.rotation.x=-Math.PI/2;
+ground.receiveShadow=true;
+scene.add(ground);
 
 const road=new THREE.Mesh(
-new THREE.PlaneGeometry(12,120),
+new THREE.PlaneGeometry(13,160),
 new THREE.MeshStandardMaterial({color:0x101519,roughness:.35})
 );
 road.rotation.x=-Math.PI/2;
 road.position.y=.02;
 scene.add(road);
 
-const buildingMat=new THREE.MeshStandardMaterial({color:0x303b45});
-for(let i=0;i<12;i++){
-for(let side of [-1,1]){
-const h=12+(i%4)*4;
-const b=new THREE.Mesh(new THREE.BoxGeometry(8,h,8),buildingMat);
-b.position.set(side*12,h/2,-i*9);
+const buildingMat=new THREE.MeshStandardMaterial({color:0x303943});
+for(let i=0;i<15;i++){
+for(const side of [-1,1]){
+const h=12+(i%4)*5;
+const b=new THREE.Mesh(
+new THREE.BoxGeometry(9,h,10),buildingMat);
+b.position.set(side*13,h/2,-i*10);
 b.castShadow=true;
 scene.add(b);
-}
-}
 
-for(let z=-50;z<50;z+=18){
-const lamp=new THREE.PointLight(0xb5d7ef,3,18);
-lamp.position.set(-6,4,z);
-scene.add(lamp);
+for(let y=3;y<h-2;y+=4){
+const win=new THREE.Mesh(
+new THREE.PlaneGeometry(1.2,1.4),
+new THREE.MeshBasicMaterial({
+color:Math.random()>.6?0xc1a36b:0x142333
+}));
+win.position.set(side*13,y,-i*10+5.01);
+scene.add(win);
+}
+}
 }
 
 const player=new THREE.Group();
@@ -92,30 +103,40 @@ scene.add(player);
 
 const body=new THREE.Mesh(
 new THREE.CapsuleGeometry(.35,.75,4,8),
-new THREE.MeshStandardMaterial({color:0x343e49})
+new THREE.MeshStandardMaterial({color:0x34495b})
 );
 body.position.y=1.1;
+body.castShadow=true;
 player.add(body);
 
 const head=new THREE.Mesh(
 new THREE.SphereGeometry(.25,16,12),
-new THREE.MeshStandardMaterial({color:0xa17e68})
+new THREE.MeshStandardMaterial({color:0xa17d65})
 );
 head.position.y=1.85;
 player.add(head);
+player.position.set(0,0,8);
 
-player.position.set(0,0,5);
-
-const flashlight=new THREE.SpotLight(0xffffff,45,30,.45);
+const flashlight=new THREE.SpotLight(0xe4f1ff,40,35,.5);
 scene.add(flashlight);
 scene.add(flashlight.target);
 
 let first=false,lightOn=true,running=false;
-let yaw=0,moveX=0,moveY=0,jumping=false,vy=0;
+let yaw=0,pitch=0,moveX=0,moveY=0;
+let jumping=false,vy=0;
+const keys={};
+
+addEventListener('keydown',e=>{
+keys[e.key.toLowerCase()]=true;
+if(e.code==='Space'&&!jumping){jumping=true;vy=5;}
+if(e.key.toLowerCase()==='v')switchCamera();
+});
+addEventListener('keyup',e=>keys[e.key.toLowerCase()]=false);
 
 function switchCamera(){
 first=!first;
 player.visible=!first;
+camera.position.set(0,2,0);
 document.querySelector('#camera').textContent=
 first?'THIRD PERSON':'FIRST PERSON';
 }
@@ -128,61 +149,80 @@ document.querySelector('#flash').textContent=
 lightOn?'FLASHLIGHT ON':'FLASHLIGHT OFF';
 };
 
-document.querySelector('#run').ontouchstart=()=>running=true;
-document.querySelector('#run').ontouchend=()=>running=false;
-document.querySelector('#run').onmousedown=()=>running=true;
-document.querySelector('#run').onmouseup=()=>running=false;
+document.querySelector('#run').onpointerdown=()=>running=true;
+document.querySelector('#run').onpointerup=()=>running=false;
+document.querySelector('#run').onpointercancel=()=>running=false;
 
 document.querySelector('#jump').onclick=()=>{
 if(!jumping){jumping=true;vy=5;}
 };
+document.querySelector('#interact').onclick=()=>{
+document.querySelector('#toast').textContent=
+'No clue nearby. Keep exploring.';
+};
 
-const stick=document.querySelector('#stick');
+const joy=document.querySelector('#joy');
 const knob=document.querySelector('#knob');
-stick.addEventListener('pointerdown',e=>{
-stick.setPointerCapture(e.pointerId);
+let active=false;
+
+joy.addEventListener('pointerdown',e=>{
+active=true;
+joy.setPointerCapture(e.pointerId);
 });
-stick.addEventListener('pointermove',e=>{
-if(!stick.hasPointerCapture(e.pointerId))return;
-const r=stick.getBoundingClientRect();
+joy.addEventListener('pointermove',e=>{
+if(!active)return;
+const r=joy.getBoundingClientRect();
 let x=e.clientX-r.left-r.width/2;
 let y=e.clientY-r.top-r.height/2;
-const length=Math.hypot(x,y);
-if(length>32){x=x/length*32;y=y/length*32;}
-moveX=x/32;moveY=y/32;
+const len=Math.hypot(x,y);
+if(len>32){x=x/len*32;y=y/len*32;}
+moveX=x/32;
+moveY=y/32;
 knob.style.transform=`translate(${x}px,${y}px)`;
 });
-function stop(){
-moveX=0;moveY=0;
+function stopJoy(){
+active=false;moveX=0;moveY=0;
 knob.style.transform='translate(0,0)';
 }
-stick.addEventListener('pointerup',stop);
-stick.addEventListener('pointercancel',stop);
+joy.addEventListener('pointerup',stopJoy);
+joy.addEventListener('pointercancel',stopJoy);
 
-let lookX=null;
+let lookId=null,lastX=0,lastY=0;
 renderer.domElement.addEventListener('pointerdown',e=>{
-if(e.clientX>innerWidth*.4)lookX=e.clientX;
-});
-renderer.domElement.addEventListener('pointermove',e=>{
-if(lookX!==null){
-yaw-=(e.clientX-lookX)*.006;
-lookX=e.clientX;
+if(e.clientX>innerWidth*.4){
+lookId=e.pointerId;
+lastX=e.clientX;lastY=e.clientY;
+renderer.domElement.setPointerCapture(e.pointerId);
 }
 });
-renderer.domElement.addEventListener('pointerup',()=>lookX=null);
+renderer.domElement.addEventListener('pointermove',e=>{
+if(lookId===e.pointerId){
+yaw-=(e.clientX-lastX)*.004;
+pitch=THREE.MathUtils.clamp(
+pitch+(e.clientY-lastY)*.003,-.6,.6);
+lastX=e.clientX;lastY=e.clientY;
+}
+});
+renderer.domElement.addEventListener('pointerup',()=>lookId=null);
 
 const clock=new THREE.Clock();
 
 function animate(){
 requestAnimationFrame(animate);
 const dt=Math.min(clock.getDelta(),.04);
-const speed=(running?7:3.5)*dt;
 
-player.position.x+=moveX*speed;
-player.position.z+=moveY*speed;
+const f=(keys.w?1:0)-(keys.s?1:0)-moveY;
+const s=(keys.d?1:0)-(keys.a?1:0)+moveX;
+const speed=(running||keys.shift?6:3)*dt;
+
+const forward=new THREE.Vector3(Math.sin(yaw),0,Math.cos(yaw));
+const right=new THREE.Vector3(Math.cos(yaw),0,-Math.sin(yaw));
+
+player.position.addScaledVector(forward,-f*speed);
+player.position.addScaledVector(right,s*speed);
 
 player.position.x=THREE.MathUtils.clamp(player.position.x,-5,5);
-player.position.z=THREE.MathUtils.clamp(player.position.z,-55,55);
+player.position.z=THREE.MathUtils.clamp(player.position.z,-75,75);
 
 if(jumping){
 player.position.y+=vy*dt;
@@ -195,7 +235,7 @@ jumping=false;vy=0;
 
 const eye=new THREE.Vector3(
 player.position.x,
-player.position.y+(first?1.7:1.4),
+player.position.y+(first?1.7:1.5),
 player.position.z
 );
 
@@ -203,11 +243,16 @@ if(first){
 camera.position.copy(eye);
 camera.rotation.order='YXZ';
 camera.rotation.y=yaw;
+camera.rotation.x=pitch;
 }else{
 camera.position.copy(eye).add(
 new THREE.Vector3(Math.sin(yaw)*5,2.5,Math.cos(yaw)*5)
 );
-camera.lookAt(player.position.x,player.position.y+1,player.position.z);
+camera.lookAt(
+player.position.x,
+player.position.y+1,
+player.position.z
+);
 }
 
 flashlight.position.copy(eye);
@@ -215,7 +260,6 @@ flashlight.target.position.copy(eye).add(
 new THREE.Vector3(-Math.sin(yaw),-.1,-Math.cos(yaw)).multiplyScalar(10)
 );
 flashlight.visible=lightOn;
-
 renderer.render(scene,camera);
 }
 
