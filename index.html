@@ -1,0 +1,231 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>DARK MIND - THE UNKNOWN</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;overflow:hidden;background:#080d12;color:white;font-family:Arial}
+canvas{display:block}
+#hud{position:fixed;inset:0;pointer-events:none}
+h3{margin:15px;letter-spacing:3px}
+#info{position:absolute;top:65px;left:15px;background:#101820bb;padding:12px;font-size:12px}
+button{pointer-events:auto;background:#172630dd;color:white;border:1px solid #8195a0;padding:12px;border-radius:9px}
+#camera{position:absolute;right:12px;top:15px}
+#flash{position:absolute;right:12px;top:65px}
+#stick{position:absolute;bottom:25px;left:22px;width:105px;height:105px;border:2px solid #ffffff66;border-radius:50%;pointer-events:auto}
+#knob{position:absolute;left:30px;top:30px;width:42px;height:42px;border-radius:50%;background:#9eafbbaa}
+#run{position:absolute;bottom:45px;right:18px}
+#jump{position:absolute;bottom:110px;right:18px}
+</style>
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"}}
+</script>
+</head>
+<body>
+<div id="hud">
+<h3>DARK MIND</h3>
+<div id="info">MISSION 01<br>THE EMPTY STREET</div>
+<button id="camera">FIRST PERSON</button>
+<button id="flash">FLASHLIGHT ON</button>
+<div id="stick"><div id="knob"></div></div>
+<button id="run">RUN</button>
+<button id="jump">JUMP</button>
+</div>
+
+<script type="module">
+import * as THREE from 'three';
+
+const scene=new THREE.Scene();
+scene.background=new THREE.Color(0x080d16);
+scene.fog=new THREE.Fog(0x101923,12,75);
+
+const camera=new THREE.PerspectiveCamera(70,innerWidth/innerHeight,.1,150);
+const renderer=new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(innerWidth,innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));
+renderer.shadowMap.enabled=true;
+renderer.toneMapping=THREE.ACESFilmicToneMapping;
+document.body.appendChild(renderer.domElement);
+
+scene.add(new THREE.HemisphereLight(0x9bbbd0,0x17121a,1.5));
+const moon=new THREE.DirectionalLight(0xa8c9e8,2);
+moon.position.set(-10,20,10);
+scene.add(moon);
+
+const floor=new THREE.Mesh(
+new THREE.PlaneGeometry(150,150),
+new THREE.MeshStandardMaterial({color:0x252a2d,roughness:.9})
+);
+floor.rotation.x=-Math.PI/2;
+scene.add(floor);
+
+const road=new THREE.Mesh(
+new THREE.PlaneGeometry(12,120),
+new THREE.MeshStandardMaterial({color:0x101519,roughness:.35})
+);
+road.rotation.x=-Math.PI/2;
+road.position.y=.02;
+scene.add(road);
+
+const buildingMat=new THREE.MeshStandardMaterial({color:0x303b45});
+for(let i=0;i<12;i++){
+for(let side of [-1,1]){
+const h=12+(i%4)*4;
+const b=new THREE.Mesh(new THREE.BoxGeometry(8,h,8),buildingMat);
+b.position.set(side*12,h/2,-i*9);
+b.castShadow=true;
+scene.add(b);
+}
+}
+
+for(let z=-50;z<50;z+=18){
+const lamp=new THREE.PointLight(0xb5d7ef,3,18);
+lamp.position.set(-6,4,z);
+scene.add(lamp);
+}
+
+const player=new THREE.Group();
+scene.add(player);
+
+const body=new THREE.Mesh(
+new THREE.CapsuleGeometry(.35,.75,4,8),
+new THREE.MeshStandardMaterial({color:0x343e49})
+);
+body.position.y=1.1;
+player.add(body);
+
+const head=new THREE.Mesh(
+new THREE.SphereGeometry(.25,16,12),
+new THREE.MeshStandardMaterial({color:0xa17e68})
+);
+head.position.y=1.85;
+player.add(head);
+
+player.position.set(0,0,5);
+
+const flashlight=new THREE.SpotLight(0xffffff,45,30,.45);
+scene.add(flashlight);
+scene.add(flashlight.target);
+
+let first=false,lightOn=true,running=false;
+let yaw=0,moveX=0,moveY=0,jumping=false,vy=0;
+
+function switchCamera(){
+first=!first;
+player.visible=!first;
+document.querySelector('#camera').textContent=
+first?'THIRD PERSON':'FIRST PERSON';
+}
+document.querySelector('#camera').onclick=switchCamera;
+
+document.querySelector('#flash').onclick=()=>{
+lightOn=!lightOn;
+flashlight.visible=lightOn;
+document.querySelector('#flash').textContent=
+lightOn?'FLASHLIGHT ON':'FLASHLIGHT OFF';
+};
+
+document.querySelector('#run').ontouchstart=()=>running=true;
+document.querySelector('#run').ontouchend=()=>running=false;
+document.querySelector('#run').onmousedown=()=>running=true;
+document.querySelector('#run').onmouseup=()=>running=false;
+
+document.querySelector('#jump').onclick=()=>{
+if(!jumping){jumping=true;vy=5;}
+};
+
+const stick=document.querySelector('#stick');
+const knob=document.querySelector('#knob');
+stick.addEventListener('pointerdown',e=>{
+stick.setPointerCapture(e.pointerId);
+});
+stick.addEventListener('pointermove',e=>{
+if(!stick.hasPointerCapture(e.pointerId))return;
+const r=stick.getBoundingClientRect();
+let x=e.clientX-r.left-r.width/2;
+let y=e.clientY-r.top-r.height/2;
+const length=Math.hypot(x,y);
+if(length>32){x=x/length*32;y=y/length*32;}
+moveX=x/32;moveY=y/32;
+knob.style.transform=`translate(${x}px,${y}px)`;
+});
+function stop(){
+moveX=0;moveY=0;
+knob.style.transform='translate(0,0)';
+}
+stick.addEventListener('pointerup',stop);
+stick.addEventListener('pointercancel',stop);
+
+let lookX=null;
+renderer.domElement.addEventListener('pointerdown',e=>{
+if(e.clientX>innerWidth*.4)lookX=e.clientX;
+});
+renderer.domElement.addEventListener('pointermove',e=>{
+if(lookX!==null){
+yaw-=(e.clientX-lookX)*.006;
+lookX=e.clientX;
+}
+});
+renderer.domElement.addEventListener('pointerup',()=>lookX=null);
+
+const clock=new THREE.Clock();
+
+function animate(){
+requestAnimationFrame(animate);
+const dt=Math.min(clock.getDelta(),.04);
+const speed=(running?7:3.5)*dt;
+
+player.position.x+=moveX*speed;
+player.position.z+=moveY*speed;
+
+player.position.x=THREE.MathUtils.clamp(player.position.x,-5,5);
+player.position.z=THREE.MathUtils.clamp(player.position.z,-55,55);
+
+if(jumping){
+player.position.y+=vy*dt;
+vy-=12*dt;
+if(player.position.y<=0){
+player.position.y=0;
+jumping=false;vy=0;
+}
+}
+
+const eye=new THREE.Vector3(
+player.position.x,
+player.position.y+(first?1.7:1.4),
+player.position.z
+);
+
+if(first){
+camera.position.copy(eye);
+camera.rotation.order='YXZ';
+camera.rotation.y=yaw;
+}else{
+camera.position.copy(eye).add(
+new THREE.Vector3(Math.sin(yaw)*5,2.5,Math.cos(yaw)*5)
+);
+camera.lookAt(player.position.x,player.position.y+1,player.position.z);
+}
+
+flashlight.position.copy(eye);
+flashlight.target.position.copy(eye).add(
+new THREE.Vector3(-Math.sin(yaw),-.1,-Math.cos(yaw)).multiplyScalar(10)
+);
+flashlight.visible=lightOn;
+
+renderer.render(scene,camera);
+}
+
+animate();
+
+addEventListener('resize',()=>{
+camera.aspect=innerWidth/innerHeight;
+camera.updateProjectionMatrix();
+renderer.setSize(innerWidth,innerHeight);
+});
+</script>
+</body>
+</html>
